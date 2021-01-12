@@ -1,10 +1,16 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 namespace Utils
 {
-    public static class Point {
+    public static class Point
+    {
         public static bool IsPointInTriangles(ushort[] triangles, Vector2[] vertices, Vector2 p)
         {
+            if (vertices.Length <= 0)
+            {
+                return false;
+            }
             int tri_count = triangles.Length / 3;
             for (int i = 0; i < tri_count; i++)
             {
@@ -16,7 +22,30 @@ namespace Utils
                 var v1 = vertices[a];
                 var v2 = vertices[b];
                 var v3 = vertices[c];
-                if (PointInTriangle(p, v1,v2,v3))
+                if (PointInTriangle(p, v1, v2, v3))
+                    return true;
+            }
+            return false;
+        }
+
+        public static bool IsPointInTriangles(ushort[] triangles, List<Vector2> vertices, Vector2 p)
+        {
+            if (vertices.Count <= 0)
+            {
+                return false;
+            }
+            int tri_count = triangles.Length / 3;
+            for (int i = 0; i < tri_count; i++)
+            {
+                var idx = i * 3;
+                var a = triangles[idx];
+                var b = triangles[idx + 1];
+                var c = triangles[idx + 2];
+
+                var v1 = vertices[a];
+                var v2 = vertices[b];
+                var v3 = vertices[c];
+                if (PointInTriangle(p, v1, v2, v3))
                     return true;
             }
             return false;
@@ -44,7 +73,7 @@ namespace Utils
         }
 
         //point in polygon
-        public static bool IsPointInPolygon(Vector2[] polyPoints, Vector2 p) 
+        public static bool IsPointInPolygon(Vector2[] polyPoints, Vector2 p)
         {
             var j = polyPoints.Length - 1;
             int cn = 0;

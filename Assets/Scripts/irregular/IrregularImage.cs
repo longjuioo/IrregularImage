@@ -11,11 +11,11 @@ namespace Unicorn.UI
         #region params
         [SerializeField]
         private List<Vector2> screenVertices = new List<Vector2>();
-        public Vector2[] ScreenVertices
+        public List<Vector2> ScreenVertices
         {
             get
             {
-                return screenVertices.ToArray();
+                return screenVertices;
             }
         }
         #endregion params
@@ -26,15 +26,31 @@ namespace Unicorn.UI
             return this.sprite;
         }
 
-        protected override void Awake()
+        void NotifyNotAssigned()
         {
             if (this.sprite == null)
-                UnityEngine.Debug.LogError($"SomeVariable has not been assigned.{this.gameObject.name}");
+            {
+                UnityEngine.Debug.LogError($"SomeVariable has not been assigned.'{this.gameObject.name}'");
+                this.enabled = false;
+            }
+        }
+
+        public bool CanRaycast()
+        {
+            return !GetSprite() && ScreenVertices.Count > 0;
+        }
+
+        protected override void Awake()
+        {
+            NotifyNotAssigned();
         }
         public override bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)
         {
+            if (CanRaycast())
+                return false;
             DebugDraw(screenPoint);
             Vector2 localPoint;
+
             bool inside = RectTransformUtility.ScreenPointToLocalPointInRectangle(this.rectTransform, screenPoint, eventCamera, out localPoint);
             if (inside)
                 return Utils.Point.IsPointInTriangles(GetSprite().triangles, ScreenVertices, localPoint);
@@ -69,9 +85,11 @@ namespace Unicorn.UI
         private Vector2 CalcSpriteVertice(Vector2 vertice)
         {
             Sprite curSprite = GetSprite();
+            float width = this.rectTransform.rect.width;
+            float height = this.rectTransform.rect.height;
             Vector2 vec = Vector2.zero;
-            vec.x = Mathf.Clamp((vertice.x - curSprite.bounds.center.x - (curSprite.textureRectOffset.x / curSprite.texture.width) + curSprite.bounds.extents.x) / (2.0f * curSprite.bounds.extents.x) * curSprite.rect.width, 0.0f, curSprite.rect.width) - curSprite.rect.width / 2.0f;
-            vec.y = Mathf.Clamp((vertice.y - curSprite.bounds.center.y - (curSprite.textureRectOffset.y / curSprite.texture.height) + curSprite.bounds.extents.y) / (2.0f * curSprite.bounds.extents.y) * curSprite.rect.height, 0.0f, curSprite.rect.height) - curSprite.rect.height / 2.0f;
+            vec.x = Mathf.Clamp((vertice.x - curSprite.bounds.center.x - (curSprite.textureRectOffset.x / curSprite.texture.width) + curSprite.bounds.extents.x) / (2.0f * curSprite.bounds.extents.x) * width, 0.0f, width) - width / 2.0f;
+            vec.y = Mathf.Clamp((vertice.y - curSprite.bounds.center.y - (curSprite.textureRectOffset.y / curSprite.texture.height) + curSprite.bounds.extents.y) / (2.0f * curSprite.bounds.extents.y) * height, 0.0f, height) - height / 2.0f;
             return vec;
         }
 
@@ -82,44 +100,59 @@ namespace Unicorn.UI
             UnityEngine.Debug.DrawRay(new Vector3(screenPoint.x, screenPoint.y, 0), forward, UnityEngine.Color.green, 1f);
 
             //draw triangles
-            float duration = 10.0f;
+            float duration = 2.0f;
             Sprite curSprite = GetSprite();
+            if (curSprite == null)
+                return;
             ushort[] triangles = curSprite.triangles;
-            Vector2[] vertices = ScreenVertices;
+            if (triangles.Length == 0 || ScreenVertices.Count == 0)
+                return;
 
+            int vLen = ScreenVertices.Count;
             int triangles_count = triangles.Length / 3;
+            if (triangles_count > vLen)
+            {
+                return;
+            }
             for (int i = 0; i < triangles_count; i++)
             {
                 var idx = i * 3;
                 var a = triangles[idx];
                 var b = triangles[idx + 1];
                 var c = triangles[idx + 2];
-
-                UnityEngine.Debug.DrawLine(GetWorldPosition(vertices[a]), GetWorldPosition(vertices[b]), UnityEngine.Color.green, duration);
-                UnityEngine.Debug.DrawLine(GetWorldPosition(vertices[b]), GetWorldPosition(vertices[c]), UnityEngine.Color.green, duration);
-                UnityEngine.Debug.DrawLine(GetWorldPosition(vertices[c]), GetWorldPosition(vertices[a]), UnityEngine.Color.green, duration);
+                if (vLen < a || vLen < b || vLen < c)
+                {
+                    UnityEngine.Debug.LogError($"请重新生成不规则图片'{curSprite.name}.png'");
+                    return;
+                }
+                UnityEngine.Debug.DrawLine(GetWorldPosition(ScreenVertices[a]), GetWorldPosition(ScreenVertices[b]), UnityEngine.Color.green, duration);
+                UnityEngine.Debug.DrawLine(GetWorldPosition(ScreenVertices[b]), GetWorldPosition(ScreenVertices[c]), UnityEngine.Color.green, duration);
+                UnityEngine.Debug.DrawLine(GetWorldPosition(ScreenVertices[c]), GetWorldPosition(ScreenVertices[a]), UnityEngine.Color.green, duration);
             }
 #endif
         }
         #endregion funcs
 
 #if UNITY_EDITOR
+        private void OnGUI()
+        {
+            DebugDraw(Vector2.zero);
+        }
+#endif
+
+#if UNITY_EDITOR
         #region ContextMenu
         [ContextMenu("生成顶点列表")]
         public void GeneratorBySpriteEditor()
         {
-#if UNITY_EDITOR
             Stopwatch sw = new Stopwatch();
             sw.Start();
-#endif
             //this.useSpriteMesh = true;
             screenVertices.Clear();
             screenVertices = TranslateSpriteVertices();
 
-#if UNITY_EDITOR
             sw.Stop();
-            UnityEngine.Debug.Log($"'{GetSprite().name}'generate screen vertices use time:{sw.ElapsedMilliseconds}ms");
-#endif
+            UnityEngine.Debug.Log($"'{GetSprite().name}'generate screen vertices count:{screenVertices.Count}, use time:{sw.ElapsedMilliseconds}ms");
         }
         #endregion
 #endif
