@@ -11,6 +11,8 @@ namespace Unicorn.UI
         #region params
         [SerializeField]
         private List<Vector2> screenVertices = new List<Vector2>();
+        Vector3 worldpos = Vector3.zero;
+
         public List<Vector2> ScreenVertices
         {
             get
@@ -52,6 +54,10 @@ namespace Unicorn.UI
             Vector2 localPoint;
 
             bool inside = RectTransformUtility.ScreenPointToLocalPointInRectangle(this.rectTransform, screenPoint, eventCamera, out localPoint);
+#if UNITY_EDITOR
+            RectTransformUtility.ScreenPointToWorldPointInRectangle(this.rectTransform, screenPoint, eventCamera, out worldpos);
+            UnityEngine.Debug.DrawLine(eventCamera.transform.position, worldpos, Color.red, 1.0f);
+#endif
             if (inside)
                 return Utils.Point.IsPointInTriangles(GetSprite().triangles, ScreenVertices, localPoint);
             else
@@ -88,19 +94,21 @@ namespace Unicorn.UI
             float width = this.rectTransform.rect.width;
             float height = this.rectTransform.rect.height;
             Vector2 vec = Vector2.zero;
-            vec.x = Mathf.Clamp((vertice.x - curSprite.bounds.center.x - (curSprite.textureRectOffset.x / curSprite.texture.width) + curSprite.bounds.extents.x) / (2.0f * curSprite.bounds.extents.x) * width, 0.0f, width) - width / 2.0f;
-            vec.y = Mathf.Clamp((vertice.y - curSprite.bounds.center.y - (curSprite.textureRectOffset.y / curSprite.texture.height) + curSprite.bounds.extents.y) / (2.0f * curSprite.bounds.extents.y) * height, 0.0f, height) - height / 2.0f;
+            vec.x = Mathf.Clamp((vertice.x - curSprite.bounds.center.x /*- (curSprite.textureRectOffset.x / curSprite.texture.width) */+ curSprite.bounds.extents.x) / (2.0f * curSprite.bounds.extents.x) * width, 0.0f, width) - width / 2.0f;
+            vec.y = Mathf.Clamp((vertice.y - curSprite.bounds.center.y /*- (curSprite.textureRectOffset.y / curSprite.texture.height)*/ + curSprite.bounds.extents.y) / (2.0f * curSprite.bounds.extents.y) * height, 0.0f, height) - height / 2.0f;
             return vec;
         }
 
         private void DebugDraw(Vector2 screenPoint)
         {
 #if UNITY_EDITOR
+            if (!this.enabled)
+                return;
             Vector3 forward = new Vector3(screenPoint.x, screenPoint.y, 0f) + Vector3.forward * 0.1f;
             UnityEngine.Debug.DrawRay(new Vector3(screenPoint.x, screenPoint.y, 0), forward, UnityEngine.Color.green, 1f);
 
             //draw triangles
-            float duration = 2.0f;
+            float duration = 1.0f;
             Sprite curSprite = GetSprite();
             if (curSprite == null)
                 return;
@@ -125,9 +133,9 @@ namespace Unicorn.UI
                     UnityEngine.Debug.LogError($"请重新生成不规则图片'{curSprite.name}.png'");
                     return;
                 }
-                UnityEngine.Debug.DrawLine(GetWorldPosition(ScreenVertices[a]), GetWorldPosition(ScreenVertices[b]), UnityEngine.Color.green, duration);
-                UnityEngine.Debug.DrawLine(GetWorldPosition(ScreenVertices[b]), GetWorldPosition(ScreenVertices[c]), UnityEngine.Color.green, duration);
-                UnityEngine.Debug.DrawLine(GetWorldPosition(ScreenVertices[c]), GetWorldPosition(ScreenVertices[a]), UnityEngine.Color.green, duration);
+                UnityEngine.Debug.DrawLine(GetWorldPosition(ScreenVertices[a]), GetWorldPosition(ScreenVertices[b]), UnityEngine.Color.yellow, duration);
+                UnityEngine.Debug.DrawLine(GetWorldPosition(ScreenVertices[b]), GetWorldPosition(ScreenVertices[c]), UnityEngine.Color.yellow, duration);
+                UnityEngine.Debug.DrawLine(GetWorldPosition(ScreenVertices[c]), GetWorldPosition(ScreenVertices[a]), UnityEngine.Color.yellow, duration);
             }
 #endif
         }
